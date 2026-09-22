@@ -5,11 +5,11 @@ ConditionPathExists=/etc/site/monitoring/agent/config.json
 
 [Service]
 Type=exec
-User=check-mk-passive-agent
-Group=check-mk-passive-agent
-EnvironmentFile=-/etc/default/check-mk-passive-agent
+User=wyga-check-mk-agentd
+Group=wyga-check-mk-agentd
+EnvironmentFile=-/etc/default/wyga-check-mk-agentd
 LoadCredential=config:/etc/site/monitoring/agent/config.json
-ExecStart=/usr/bin/check-mk-passive-agent
+ExecStart=/usr/bin/wyga-check-mk-agentd
 StateDirectory=monitoring/passive
 StateDirectoryMode=0750
 UMask=0027
