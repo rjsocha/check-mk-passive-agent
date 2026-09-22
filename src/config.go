@@ -10,8 +10,7 @@ import (
 )
 
 type Config struct {
-	Tokens  []string `json:"tokens"`
-	Secrets []string `json:"secrets"`
+	Tokens []string `json:"tokens"`
 }
 
 type Settings struct {
@@ -70,17 +69,12 @@ func loadConfig(path string) (Config, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return c, fmt.Errorf("%s: %w", path, err)
 	}
-	if len(c.Tokens) == 0 && len(c.Secrets) == 0 {
-		return c, errors.New("config: no tokens and no secrets")
+	if len(c.Tokens) == 0 {
+		return c, errors.New("config: tokens is empty")
 	}
 	for _, t := range c.Tokens {
 		if t == "" {
 			return c, errors.New("config: empty token")
-		}
-	}
-	for _, s := range c.Secrets {
-		if s == "" {
-			return c, errors.New("config: empty secret")
 		}
 	}
 	return c, nil

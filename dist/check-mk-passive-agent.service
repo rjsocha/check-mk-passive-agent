@@ -1,6 +1,7 @@
 [Unit]
 Description=Checkmk passive agent receiver
 After=network.target
+ConditionPathExists=/etc/site/monitoring/agent/config.json
 
 [Service]
 Type=exec

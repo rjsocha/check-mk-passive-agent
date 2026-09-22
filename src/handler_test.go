@@ -50,7 +50,7 @@ func valid(t *testing.T) request {
 		path:   "/push-agent/passive/web1.example.com",
 		method: http.MethodPost,
 		fields: map[string]string{
-			"token":    "tok-1",
+			"token":    hostToken("sec-1", "web1.example.com"),
 			"hostname": "web1.example.com",
 			"md5":      sum(agentData),
 		},
@@ -61,7 +61,7 @@ func valid(t *testing.T) request {
 func receiver(t *testing.T) *Receiver {
 	t.Helper()
 	return &Receiver{
-		Config:     Config{Tokens: []string{"tok-0", "tok-1"}},
+		Config:     Config{Tokens: []string{"sec-0", "sec-1"}},
 		Storage:    t.TempDir(),
 		MaxBody:    1 << 20,
 		MaxPayload: 1 << 20,
@@ -122,7 +122,9 @@ func TestReject(t *testing.T) {
 		{"prefix without slash", func(r *request) { r.path = "/push-agent/passivex" }, 404, ""},
 		{"method", func(r *request) { r.method = http.MethodGet }, 405, ""},
 		{"no token", func(r *request) { delete(r.fields, "token") }, 406, ""},
-		{"bad token", func(r *request) { r.fields["token"] = "tok-x" }, 404, ""},
+		{"bad token", func(r *request) { r.fields["token"] = hostToken("sec-x", "web1.example.com") }, 404, ""},
+		{"token of another host", func(r *request) { r.fields["token"] = hostToken("sec-1", "other.example.com") }, 404, ""},
+		{"secret sent as token", func(r *request) { r.fields["token"] = "sec-1" }, 404, ""},
 		{"no hostname", func(r *request) { delete(r.fields, "hostname") }, 405, ""},
 		{"no md5", func(r *request) { delete(r.fields, "md5") }, 405, ""},
 		{"no payload", func(r *request) { r.noFile = true }, 400, ""},
@@ -177,7 +179,6 @@ func TestLoadConfig(t *testing.T) {
 	for _, bad := range []string{
 		`{"tokens":[]}`,
 		`{}`,
-		`{"secrets":[""]}`,
 		`{"tokens":[""]}`,
 		`{broken`,
 	} {
@@ -210,7 +211,7 @@ func TestBasicAuthHeaderIgnored(t *testing.T) {
 
 func TestPerHostToken(t *testing.T) {
 	rc := receiver(t)
-	rc.Config = Config{Secrets: []string{"s3cr3t"}}
+	rc.Config = Config{Tokens: []string{"s3cr3t"}}
 
 	rq := valid(t)
 	rq.fields["token"] = hostToken("s3cr3t", "web1.example.com")
@@ -228,18 +229,6 @@ func TestPerHostToken(t *testing.T) {
 	rq.fields["token"] = "s3cr3t"
 	if w := send(t, rc, rq); w.Code != http.StatusNotFound {
 		t.Fatalf("secret used as token: code %d", w.Code)
-	}
-}
-
-func TestBothModes(t *testing.T) {
-	rc := receiver(t)
-	rc.Config = Config{Tokens: []string{"shared"}, Secrets: []string{"s3cr3t"}}
-	for _, token := range []string{"shared", hostToken("s3cr3t", "web1.example.com")} {
-		rq := valid(t)
-		rq.fields["token"] = token
-		if w := send(t, rc, rq); w.Code != http.StatusOK {
-			t.Fatalf("token %q: code %d", token, w.Code)
-		}
 	}
 }
 

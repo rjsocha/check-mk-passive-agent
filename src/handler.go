@@ -51,12 +51,7 @@ func hostToken(secret, hostname string) string {
 func (rc *Receiver) validToken(token, hostname string) bool {
 	match := false
 	for _, t := range rc.Config.Tokens {
-		if equal(token, t) {
-			match = true
-		}
-	}
-	for _, s := range rc.Config.Secrets {
-		if equal(token, hostToken(s, hostname)) {
+		if equal(token, hostToken(t, hostname)) {
 			match = true
 		}
 	}

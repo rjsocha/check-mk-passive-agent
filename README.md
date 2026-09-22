@@ -69,30 +69,28 @@ Tokens, `/etc/site/monitoring/agent/config.json` (`root:root`, `0600`):
 
 ```json
 {
-  "tokens": ["shared-token"],
-  "secrets": ["per-host-secret"]
+  "tokens": ["per-host-secret"]
 }
 ```
 
-A push is accepted when its `token` matches an entry in `tokens`, or when it
-matches a token derived for the host it claims to be:
+Each entry is a secret, not a bearer token. A push is accepted when its
+`token` equals the value derived for the host it claims to be:
 
 ```
 token = sha256(secret + ":" + hostname)     # hex
 ```
 
-With `secrets`, a host can only push under its own name: the secret never
-leaves the monitoring host and the provisioning system, so a compromised host
-cannot compute the token of another host. `tokens` is the shared-token mode
-every agent used before; keeping both lets a fleet migrate host by host. Each
-field takes a list, so a value can be rotated without downtime. At least one
-entry in one of the two lists is required.
+A host therefore only ever holds the token minted for its own name: the secret
+stays on this host and on the provisioning system, so a compromised host
+cannot compute the token of another host. The field is a list so a secret can
+be rotated without downtime - both the old and the new one are accepted while
+the fleet is updated. At least one entry is required.
 
 The unit passes this file to the service with `LoadCredential=`, so the
 service user never needs read access to `/etc/site/monitoring/agent`. The service
 reads `$CREDENTIALS_DIRECTORY/config`; outside systemd it falls back to
 `/etc/site/monitoring/agent/config.json`. `CMK_PASSIVE_CONFIG` overrides both. The
-service refuses to start without at least one token or secret. Changes
+service refuses to start without at least one token. Changes
 need `systemctl restart check-mk-passive-agent`.
 
 ## systemd

@@ -59,8 +59,8 @@ func main() {
 		server.Shutdown(shutdown)
 	}()
 
-	log.Printf("check-mk-passive-agent %s listening on %s, storage %s, tokens %d, secrets %d",
-		version, settings.Listen, settings.Storage, len(config.Tokens), len(config.Secrets))
+	log.Printf("check-mk-passive-agent %s listening on %s, storage %s, tokens %d",
+		version, settings.Listen, settings.Storage, len(config.Tokens))
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
