@@ -50,6 +50,12 @@ func main() {
 		IdleTimeout:       120 * time.Second,
 	}
 
+	done := make(chan struct{})
+	defer close(done)
+	if settings.Retention > 0 {
+		go cleanupLoop(settings.Storage, settings.Retention, time.Hour, done)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go func() {
@@ -59,7 +65,7 @@ func main() {
 		server.Shutdown(shutdown)
 	}()
 
-	log.Printf("wyga-check-mk-agentd %s listening on %s, storage %s, tokens %d",
+	log.Printf("check-mk-passive-agent %s listening on %s, storage %s, tokens %d",
 		version, settings.Listen, settings.Storage, len(config.Tokens))
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)

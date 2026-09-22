@@ -30,18 +30,18 @@ jobs:
           GOOS: linux
           GOARCH: amd64
         run: |
-          go -C src build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o ../wyga-check-mk-agentd-linux-amd64 .
-          sha256sum wyga-check-mk-agentd-linux-amd64 > wyga-check-mk-agentd-linux-amd64.sha256
+          go -C src build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o ../check-mk-passive-agent-linux-amd64 .
+          sha256sum check-mk-passive-agent-linux-amd64 > check-mk-passive-agent-linux-amd64.sha256
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wyga-check-mk-agentd-linux-amd64
+          name: check-mk-passive-agent-linux-amd64
           path: |
-            wyga-check-mk-agentd-linux-amd64
-            wyga-check-mk-agentd-linux-amd64.sha256
+            check-mk-passive-agent-linux-amd64
+            check-mk-passive-agent-linux-amd64.sha256
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" --generate-notes wyga-check-mk-agentd-linux-amd64 wyga-check-mk-agentd-linux-amd64.sha256
+        run: gh release create "${GITHUB_REF_NAME}" --generate-notes check-mk-passive-agent-linux-amd64 check-mk-passive-agent-linux-amd64.sha256

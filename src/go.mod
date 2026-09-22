@@ -1,3 +1,3 @@
-module github.com/rjsocha/wyga-check-mk-agentd
+module github.com/rjsocha/check-mk-passive-agent
 
 go 1.26

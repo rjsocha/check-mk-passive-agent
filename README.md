@@ -1,4 +1,4 @@
-# wyga-check-mk-agentd
+# check-mk-passive-agent
 
 Receiver for Checkmk agents that push their output (`check-mk-agent-push`)
 instead of being polled. Each push is written to
@@ -9,7 +9,7 @@ instead of being polled. Each push is written to
 agent (cron, every minute)
   -> HTTPS POST /push-agent/passive/<hostname>
   -> nginx (TLS termination, optional basic auth, proxy_pass)
-  -> wyga-check-mk-agentd (127.0.0.1:8611)
+  -> check-mk-passive-agent (127.0.0.1:8611)
   -> /var/lib/monitoring/passive/<hostname>
   -> Checkmk site: grab-check / host-grab-check
 ```
@@ -37,7 +37,7 @@ Checks run in this order; the status codes are the ones the PHP receiver used:
 |--------------------------------------------|---------------------|
 | path outside `/push-agent/passive`         | 404                 |
 | method other than POST                     | 405                 |
-| request body over `CMK_AGENTD_MAX_BODY`   | 413                 |
+| request body over `CMK_PASSIVE_MAX_BODY`   | 413                 |
 | missing `token`                            | 406                 |
 | missing `hostname` or `md5`                | 405                 |
 | invalid `hostname`                         | 403 `FAIL:HOSTNAME` |
@@ -53,17 +53,22 @@ over `<hostname>`, so Checkmk never reads a partial file. Tokens are compared
 in constant time. Rejected requests are logged to stdout
 (journald); successful pushes are not logged.
 
+Once an hour the service removes spool files older than
+`CMK_PASSIVE_RETENTION`, so hosts that were decommissioned do not keep
+answering with stale data, and leftover temporary files older than an hour.
+
 ## Configuration
 
-Runtime settings, `/etc/default/wyga-check-mk-agentd`:
+Runtime settings, `/etc/default/check-mk-passive-agent`:
 
 | Variable                  | Default                             |
 |---------------------------|-------------------------------------|
-| `CMK_AGENTD_LISTEN`      | `127.0.0.1:8611`                    |
-| `CMK_AGENTD_STORAGE`     | `/var/lib/monitoring/passive`       |
-| `CMK_AGENTD_MAX_BODY`    | `8388608` (8 MiB, request body)     |
-| `CMK_AGENTD_MAX_PAYLOAD` | `33554432` (32 MiB, after gunzip)   |
-| `CMK_AGENTD_CONFIG`      | see below                           |
+| `CMK_PASSIVE_LISTEN`      | `127.0.0.1:8611`                    |
+| `CMK_PASSIVE_STORAGE`     | `/var/lib/monitoring/passive`       |
+| `CMK_PASSIVE_MAX_BODY`    | `8388608` (8 MiB, request body)     |
+| `CMK_PASSIVE_MAX_PAYLOAD` | `33554432` (32 MiB, after gunzip)   |
+| `CMK_PASSIVE_RETENTION`    | `168h` (7 days, `0` disables cleanup) |
+| `CMK_PASSIVE_CONFIG`      | see below                           |
 
 Tokens, `/etc/site/monitoring/agent/config.json` (`root:root`, `0600`):
 
@@ -89,13 +94,13 @@ the fleet is updated. At least one entry is required.
 The unit passes this file to the service with `LoadCredential=`, so the
 service user never needs read access to `/etc/site/monitoring/agent`. The service
 reads `$CREDENTIALS_DIRECTORY/config`; outside systemd it falls back to
-`/etc/site/monitoring/agent/config.json`. `CMK_AGENTD_CONFIG` overrides both. The
+`/etc/site/monitoring/agent/config.json`. `CMK_PASSIVE_CONFIG` overrides both. The
 service refuses to start without at least one token. Changes
-need `systemctl restart wyga-check-mk-agentd`.
+need `systemctl restart check-mk-passive-agent`.
 
 ## systemd
 
-`dist/wyga-check-mk-agentd.service` runs the service as `wyga-check-mk-agentd`, a
+`dist/check-mk-passive-agent.service` runs the service as `check-mk-passive-agent`, a
 system user the package creates. systemd creates the storage directory
 (`StateDirectory=monitoring/passive`, mode `0750`) owned by the service user
 and group; files are written `0640`.
@@ -104,14 +109,14 @@ The Checkmk site must be able to read the directory, so the service group has
 to be the site group. Set it with a drop-in, e.g. for a site named `site`:
 
 ```
-# /etc/systemd/system/wyga-check-mk-agentd.service.d/group.conf
+# /etc/systemd/system/check-mk-passive-agent.service.d/group.conf
 [Service]
 Group=site
 ```
 
 ```
 systemctl daemon-reload
-systemctl enable --now wyga-check-mk-agentd
+systemctl enable --now check-mk-passive-agent
 ```
 
 On a host that already has `/var/lib/monitoring/passive` from the PHP
@@ -134,7 +139,7 @@ passive:$6$rounds=656000$...
 
 `dist/nginx-agent.conf.example` is a minimal vhost; replace the static
 certificate lines with the ACME module configuration when using nginx from
-nginx.org. Keep `client_max_body_size` at or above `CMK_AGENTD_MAX_BODY`.
+nginx.org. Keep `client_max_body_size` at or above `CMK_PASSIVE_MAX_BODY`.
 
 ## Checkmk site
 
@@ -167,7 +172,7 @@ Go sources live in `src/`.
 
 ```
 make test
-make build        # static linux/amd64 binary: ./wyga-check-mk-agentd
+make build        # static linux/amd64 binary: ./check-mk-passive-agent
 ```
 
 GitHub Actions (`.github/workflows/build.yml`) runs the tests and builds the

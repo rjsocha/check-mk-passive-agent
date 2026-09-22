@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -19,6 +20,7 @@ type Settings struct {
 	ConfigFile string
 	MaxBody    int64
 	MaxPayload int64
+	Retention  time.Duration
 }
 
 func env(name, fallback string) string {
@@ -42,22 +44,37 @@ func envSize(name string, fallback int64) (int64, error) {
 
 func loadSettings() (Settings, error) {
 	s := Settings{
-		Listen:     env("CMK_AGENTD_LISTEN", "127.0.0.1:8611"),
-		Storage:    env("CMK_AGENTD_STORAGE", "/var/lib/monitoring/passive"),
+		Listen:     env("CMK_PASSIVE_LISTEN", "127.0.0.1:8611"),
+		Storage:    env("CMK_PASSIVE_STORAGE", "/var/lib/monitoring/passive"),
 		ConfigFile: "/etc/site/monitoring/agent/config.json",
 	}
 	if dir := env("CREDENTIALS_DIRECTORY", ""); dir != "" {
 		s.ConfigFile = filepath.Join(dir, "config")
 	}
-	s.ConfigFile = env("CMK_AGENTD_CONFIG", s.ConfigFile)
+	s.ConfigFile = env("CMK_PASSIVE_CONFIG", s.ConfigFile)
 	var err error
-	if s.MaxBody, err = envSize("CMK_AGENTD_MAX_BODY", 8<<20); err != nil {
+	if s.MaxBody, err = envSize("CMK_PASSIVE_MAX_BODY", 8<<20); err != nil {
 		return s, err
 	}
-	if s.MaxPayload, err = envSize("CMK_AGENTD_MAX_PAYLOAD", 32<<20); err != nil {
+	if s.MaxPayload, err = envSize("CMK_PASSIVE_MAX_PAYLOAD", 32<<20); err != nil {
+		return s, err
+	}
+	if s.Retention, err = envDuration("CMK_PASSIVE_RETENTION", 7*24*time.Hour); err != nil {
 		return s, err
 	}
 	return s, nil
+}
+
+func envDuration(name string, fallback time.Duration) (time.Duration, error) {
+	v := env(name, "")
+	if v == "" {
+		return fallback, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
+		return 0, fmt.Errorf("%s: invalid duration %q", name, v)
+	}
+	return d, nil
 }
 
 func loadConfig(path string) (Config, error) {
