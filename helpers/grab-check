@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+STORAGE="/var/lib/monitoring/passive/"
+if [ -n "$1" ]
+then
+  host="$1"
+  if [ -f "${STORAGE}/${host}" ]
+  then
+    exec cat "${STORAGE}/${host}"
+  fi
+fi
+exit 1

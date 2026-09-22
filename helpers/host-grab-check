@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+STORAGE="/var/lib/monitoring/passive"
+if [[ -n "$1" ]]
+then
+  host="$1"
+  if [[ -s ${STORAGE}/${host} ]]
+  then
+    _mt=$(stat -c "%Y" "${STORAGE}/${host}")
+    _ts=$(date +%s)
+    if [[ $_mt =~ ^[0-9]+$ ]] && [[ $_ts =~ ^[0-9]+$ ]]
+    then
+      # metricname=value;warn;crit;min;max
+      _d=$(( _ts - _mt ))
+      if [[ ${_d} -le 80 ]]
+      then
+        echo "OK - ${host}: Freshness ${_d}s|freshness=${_d};65;80;0;300"
+        exit 0
+      else
+        if [[ ${_d} -gt 300 ]]
+        then
+          _d=300
+        fi
+        echo "CRITICAL - ${host}: Freshness ${_d}s|freshness=${_d};65;80;0;300"
+      fi
+    fi
+  else
+    echo "UNKNOWN - UNKNOWN host ${host}"
+  fi
+else
+  echo "UNKNOWN - MISSING host name"
+fi
+exit 3
